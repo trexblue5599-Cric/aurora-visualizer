@@ -1,0 +1,5 @@
+# On Mac/Linux
+touch .nojekyll
+
+# On Windows (PowerShell)
+New-Item .nojekyll -ItemType File

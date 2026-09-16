@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#05060a">
+    <meta name="description" content="Aurora — a high-graphics audio visualizer. Play in your browser, or download for Android & Windows.">
+    <meta name="keywords" content="audio visualizer, music visualizer, spectrum, web audio, aurora">
+    <meta name="author" content="Aurora">
+
+    <!-- Open Graph (social share preview) -->
+    <meta property="og:title" content="Aurora — Audio Visualizer">
+    <meta property="og:description" content="High-graphics audio visualizer for web, Android & Windows.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/preview.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+
+    <title>Aurora — Audio Visualizer</title>
+
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LANDING / HERO
+     ═══════════════════════════════════════════ -->
+<section class="hero" id="hero">
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="hero-content">
+        <div class="brand-big">
+            <span class="dot"></span>
+            <h1>AURORA</h1>
+        </div>
+
+        <p class="tagline">High‑graphics audio visualizer</p>
+        <p class="sub">
+            Reactive bars · Radial bloom · Waveforms · Particle fields —
+            driven by your music in real time.
+        </p>
+
+        <div class="cta-row">
+            <button class="btn primary" id="playNowBtn">
+                <span class="icon">▶</span> Play in Browser
+            </button>
+
+            <button class="btn download" id="apkBtn">
+                <span class="icon">📱</span> Download APK
+                <span class="badge">soon</span>
+            </button>
+
+            <button class="btn download" id="exeBtn">
+                <span class="icon">💻</span> Download EXE
+                <span class="badge">soon</span>
+            </button>
+        </div>
+
+        <div class="platforms">
+            <span>Web</span> · <span>Android</span> · <span>Windows</span> ·
+            <span>macOS</span> · <span>Linux</span>
+        </div>
+    </div>
+
+    <div class="scroll-hint">▽ scroll</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     PLAYER (fullscreen overlay)
+     ═══════════════════════════════════════════ -->
+<section class="player-section" id="playerSection">
+    <canvas id="visualizer"></canvas>
+
+    <div class="overlay">
+        <header class="top-bar">
+            <div class="brand">
+                <span class="dot"></span>
+                <h1>AURORA</h1>
+                <span class="tag">visualizer</span>
+            </div>
+            <div class="controls-top">
+                <button id="modeBtn" class="pill">◉ Bars</button>
+                <button id="fullscreenBtn" class="pill">⛶</button>
+                <button id="backBtn" class="pill">✕ Close</button>
+            </div>
+        </header>
+
+        <div class="hint" id="hint">
+            <p>Drop an audio file or tap below to begin</p>
+        </div>
+
+        <div class="player">
+            <div class="track-info">
+                <div class="cover"></div>
+                <div class="meta">
+                    <h2 id="trackName">No track loaded</h2>
+                    <p id="trackMeta">Upload an audio file to visualize</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="playBtn" class="main-btn">
+                    <svg viewBox="0 0 24 24" id="playIcon">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </button>
+                <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+                <span id="time" class="time">0:00 / 0:00</span>
+            </div>
+
+            <div class="upload-row">
+                <label for="fileInput" class="upload-btn">
+                    ⬆ Upload Audio
+                    <input type="file" id="fileInput" accept="audio/*" hidden>
+                </label>
+                <label class="mic-btn" id="micBtn">🎤 Use Mic</label>
+                <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" title="Volume">
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     FEATURES
+     ═══════════════════════════════════════════ -->
+<section class="features">
+    <h2>Built for the vibe</h2>
+
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="f-icon">◉</div>
+            <h3>4 Visual Modes</h3>
+            <p>Bars, Radial, Waveform, and Particles — switch live with one tap.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🎤</div>
+            <h3>Live Mic Input</h3>
+            <p>Visualize your own voice, instruments, or the room in real time.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">⚡</div>
+            <h3>Zero Latency</h3>
+            <p>Powered by the Web Audio API with native-grade frequency analysis.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🖥</div>
+            <h3>Fullscreen Mode</h3>
+            <p>Fill the screen for parties, streams, and music videos.</p>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>© <span id="year"></span> Aurora — Made with ♥ and the Web Audio API</p>
+        <p class="tiny">
+            <kbd>Space</kbd> play/pause · <kbd>M</kbd> mode · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> close
+        </p>
+    </footer>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>

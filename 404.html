@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Aurora</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #05060a;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            padding: 24px;
+            overflow: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 50% 40%, rgba(124,92,255,0.22) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .wrap { position: relative; z-index: 1; }
+        h1 {
+            font-size: clamp(80px, 20vw, 180px);
+            font-weight: 900;
+            letter-spacing: -6px;
+            background: linear-gradient(135deg, #fff 0%, #b8a8ff 40%, #00e5ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 15px;
+            opacity: 0.6;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+        a {
+            display: inline-block;
+            padding: 14px 30px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #7c5cff, #00e5ff);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 12px 40px rgba(124,92,255,0.5);
+            transition: transform 0.25s ease, box-shadow 0.3s ease;
+        }
+        a:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 52px rgba(0,229,255,0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>404</h1>
+        <p>Lost in the void</p>
+        <a href="/">← Back to Aurora</a>
+    </div>
+</body>
+</html>
