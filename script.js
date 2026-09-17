@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   AURORA — Landing + Player (Nebula Mode — FIXED)
+   AURORA — Landing + Player (Part 1/2)
    ═══════════════════════════════════════════════════════ */
 
 document.getElementById('year').textContent = new Date().getFullYear();
@@ -319,7 +319,6 @@ function spawnStreak(bass) {
 }
 
 window.addEventListener('resize', () => { initStars(); });
-
 /* ── Render loop ── */
 let rotation = 0;
 let hueShift = 0;
@@ -616,4 +615,50 @@ function drawNebula(energy, bass, treble) {
         ctx.shadowColor = `hsla(${st.hue}, 100%, 75%, ${st.life})`;
         ctx.beginPath();
         ctx.moveTo(backX, backY);
-        
+        ctx.lineTo(st.x, st.y);
+        ctx.stroke();
+    }
+
+    /* 4. Core pulse */
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.shadowBlur = 0;
+    const coreR = (20 + bass * 90) * DPR;
+    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+    coreGrad.addColorStop(0, `hsla(${(hueShift * 0.8) % 360 + 260}, 100%, 85%, ${0.5 + bass * 0.5})`);
+    coreGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.shadowBlur = 0;
+}
+
+/* ── Init visualizer ── */
+function initVisualizer() {
+    resize();
+    initStars();
+    draw();
+}
+
+/* ── Keyboard ── */
+document.addEventListener('keydown', e => {
+    if (!playerSection.classList.contains('active')) return;
+    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+    if (e.key === 'm' || e.key === 'M') modeBtn.click();
+    if (e.key === 'f' || e.key === 'F') fullscreenBtn.click();
+    if (e.key === 'Escape') backBtn.click();
+});
+
+/* ── Drag & drop ── */
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) {
+        if (!playerSection.classList.contains('active')) playNowBtn.click();
+        setTimeout(() => loadFile(file), 200);
+    }
+});
