@@ -1,12 +1,10 @@
 /* ═══════════════════════════════════════════════════════
-   AURORA — Landing + Player (Nebula Mode)
+   AURORA — Landing + Player (Nebula Mode — FIXED)
    ═══════════════════════════════════════════════════════ */
 
 document.getElementById('year').textContent = new Date().getFullYear();
 
-/* ───────────────────────────────────────────
-   Toast helper
-   ─────────────────────────────────────────── */
+/* ── Toast ── */
 let toastEl;
 function toast(msg, duration = 2400) {
     if (!toastEl) {
@@ -20,9 +18,7 @@ function toast(msg, duration = 2400) {
     toastEl._t = setTimeout(() => toastEl.classList.remove('show'), duration);
 }
 
-/* ───────────────────────────────────────────
-   Button click ripple
-   ─────────────────────────────────────────── */
+/* ── Ripple on buttons ── */
 document.querySelectorAll('.btn').forEach(btn => {
     btn.addEventListener('click', () => {
         btn.classList.add('clicked');
@@ -30,21 +26,18 @@ document.querySelectorAll('.btn').forEach(btn => {
     });
 });
 
-/* ───────────────────────────────────────────
-   PLACEHOLDER DOWNLOAD BUTTONS
-   ─────────────────────────────────────────── */
+/* ── Placeholder downloads ── */
 document.getElementById('apkBtn').addEventListener('click', () => {
-    toast('📱 <span class="accent">Android APK</span> coming soon — build in progress!');
+    toast('📱 <span class="accent">Android APK</span> coming soon!');
 });
 document.getElementById('exeBtn').addEventListener('click', () => {
-    toast('💻 <span class="accent">Windows EXE</span> coming soon — build in progress!');
+    toast('💻 <span class="accent">Windows EXE</span> coming soon!');
 });
 
-/* ───────────────────────────────────────────
-   HERO ambient background canvas
-   ─────────────────────────────────────────── */
+/* ── Hero background orbs ── */
 (function heroBg() {
     const c = document.getElementById('bgCanvas');
+    if (!c) return;
     const x = c.getContext('2d');
     let W, H, DPR;
 
@@ -65,7 +58,7 @@ document.getElementById('exeBtn').addEventListener('click', () => {
     }));
 
     let t = 0;
-    function loop() {
+    (function loop() {
         t += 0.006;
         x.fillStyle = '#05060a';
         x.fillRect(0, 0, W, H);
@@ -75,8 +68,7 @@ document.getElementById('exeBtn').addEventListener('click', () => {
             if (o.x < 0 || o.x > 1) o.vx *= -1;
             if (o.y < 0 || o.y > 1) o.vy *= -1;
 
-            const cx = o.x * W;
-            const cy = o.y * H;
+            const cx = o.x * W, cy = o.y * H;
             const r  = o.r * Math.min(W, H) * (1 + Math.sin(t + i) * 0.15);
 
             const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -89,12 +81,11 @@ document.getElementById('exeBtn').addEventListener('click', () => {
         });
 
         requestAnimationFrame(loop);
-    }
-    loop();
+    })();
 })();
 
 /* ═══════════════════════════════════════════════════════
-   PLAYER + VISUALIZER
+   PLAYER
    ═══════════════════════════════════════════════════════ */
 
 const playerSection = document.getElementById('playerSection');
@@ -117,7 +108,7 @@ backBtn.addEventListener('click', () => {
     document.body.classList.remove('locked');
 });
 
-/* ── Canvas + Audio setup ── */
+/* ── Canvas + Audio ── */
 const canvas = document.getElementById('visualizer');
 const ctx    = canvas.getContext('2d');
 
@@ -152,7 +143,7 @@ sourceEl.connect(analyser);
 let micStream = null;
 let micSource = null;
 
-/* ── UI elements ── */
+/* ── UI ── */
 const fileInput     = document.getElementById('fileInput');
 const playBtn       = document.getElementById('playBtn');
 const playIcon      = document.getElementById('playIcon');
@@ -171,8 +162,8 @@ const pausePath = 'M6 5h4v14H6zM14 5h4v14h-4z';
 
 let mode = 0;
 const modes = ['◉ Bars', '◎ Radial', '〜 Wave', '✦ Nebula'];
-let stars  = [];
-let streaks = [];
+let stars    = [];
+let streaks  = [];
 let barPeaks = new Float32Array(128);
 
 /* ── File upload ── */
@@ -192,7 +183,7 @@ function loadFile(file) {
     playIcon.querySelector('path').setAttribute('d', pausePath);
 }
 
-/* ── Play / pause ── */
+/* ── Play/pause ── */
 playBtn.addEventListener('click', () => {
     if (micStream) { stopMic(); return; }
     if (!audioEl.src) return;
@@ -255,8 +246,8 @@ micBtn.addEventListener('click', async () => {
     if (micStream) { stopMic(); return; }
     try {
         if (audioCtx.state === 'suspended') await audioCtx.resume();
-        micStream  = await getMicStream();
-        micSource  = audioCtx.createMediaStreamSource(micStream);
+        micStream = await getMicStream();
+        micSource = audioCtx.createMediaStreamSource(micStream);
         micSource.connect(analyser);
         audioEl.pause();
         trackName.textContent = 'Live Microphone';
@@ -295,14 +286,16 @@ fullscreenBtn.addEventListener('click', () => {
 /* ── Nebula entities ── */
 function initStars() {
     stars = [];
+    streaks = [];
     const count = 220;
+    const cx = W / 2, cy = H / 2;
+    const maxR = Math.min(W, H) * 0.42;
     for (let i = 0; i < count; i++) {
-        // Spawn in a disc around center
         const a = Math.random() * Math.PI * 2;
-        const r = Math.sqrt(Math.random()) * Math.min(W, H) * 0.42;
+        const r = Math.sqrt(Math.random()) * maxR;
         stars.push({
-            x: W / 2 + Math.cos(a) * r,
-            y: H / 2 + Math.sin(a) * r,
+            x: cx + Math.cos(a) * r,
+            y: cy + Math.sin(a) * r,
             vx: 0, vy: 0,
             size: Math.random() * 1.6 + 0.4,
             hue: 240 + Math.random() * 100,
@@ -327,7 +320,7 @@ function spawnStreak(bass) {
 
 window.addEventListener('resize', () => { initStars(); });
 
-/* ── Rendering ── */
+/* ── Render loop ── */
 let rotation = 0;
 let hueShift = 0;
 let lastBass = 0;
@@ -336,7 +329,6 @@ function draw() {
     if (!visualizerRunning) return;
     requestAnimationFrame(draw);
 
-    // Trail fade — softer for nebula
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(5,6,10,0.18)';
     ctx.fillRect(0, 0, W, H);
@@ -347,7 +339,6 @@ function draw() {
     hueShift += 0.08;
     rotation += 0.004;
 
-    // Energy metrics
     let sumAll = 0;
     for (let i = 0; i < freqData.length; i++) sumAll += freqData[i];
     const energy = sumAll / freqData.length / 255;
@@ -357,11 +348,10 @@ function draw() {
     const bass = bassSum / 10 / 255;
 
     let trebleSum = 0;
-    const trebleStart = Math.floor(freqData.length * 0.7);
-    for (let i = trebleStart; i < freqData.length; i++) trebleSum += freqData[i];
-    const treble = trebleSum / (freqData.length - trebleStart) / 255;
+    const tStart = Math.floor(freqData.length * 0.7);
+    for (let i = tStart; i < freqData.length; i++) trebleSum += freqData[i];
+    const treble = trebleSum / (freqData.length - tStart) / 255;
 
-    // Beat detection (bass spike)
     if (bass - lastBass > 0.15 && bass > 0.35) {
         for (let k = 0; k < 3; k++) spawnStreak(bass);
     }
@@ -519,13 +509,13 @@ function drawWave(energy) {
 }
 
 /* ═══════════════════════════════════════════
-   MODE 3 — NEBULA (new!)
+   MODE 3 — NEBULA
    ═══════════════════════════════════════════ */
 function drawNebula(energy, bass, treble) {
     const cx = W / 2, cy = H / 2;
     const maxR = Math.min(W, H) * 0.5;
 
-    /* ── 1. Rotating nebula cloud ─────────────────── */
+    /* 1. Rotating nebula cloud */
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rotation * 0.6);
@@ -543,7 +533,6 @@ function drawNebula(energy, bass, treble) {
     ctx.arc(0, 0, cloudR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Swirl lines (arcs) — the "filaments"
     for (let s = 0; s < 5; s++) {
         const arcR = cloudR * (0.35 + s * 0.14);
         const hue = (h1 + s * 30) % 360;
@@ -557,18 +546,16 @@ function drawNebula(energy, bass, treble) {
     }
     ctx.restore();
 
-    /* ── 2. Stars (drifting outward) ──────────────── */
+    /* 2. Stars */
     for (let s of stars) {
         const dx = s.x - cx, dy = s.y - cy;
         const dist = Math.hypot(dx, dy) || 1;
         const nx = dx / dist, ny = dy / dist;
 
-        // Gentle outward push, stronger with bass
         const push = 0.05 + bass * 1.4;
         s.vx += nx * push * 0.3;
         s.vy += ny * push * 0.3;
 
-        // Orbital swirl (perpendicular) — sparkle with treble
         const swirl = 0.12 + treble * 0.8;
         s.vx += -ny * swirl * 0.15;
         s.vy +=  nx * swirl * 0.15;
@@ -579,7 +566,6 @@ function drawNebula(energy, bass, treble) {
         s.x += s.vx;
         s.y += s.vy;
 
-        // Wrap back to center when too far
         if (dist > maxR) {
             const a = Math.random() * Math.PI * 2;
             const r = Math.random() * maxR * 0.15;
@@ -588,7 +574,6 @@ function drawNebula(energy, bass, treble) {
             s.vx = 0; s.vy = 0;
         }
 
-        // Twinkle
         s.twinkle += s.twinkleSpeed + treble * 0.15;
         const tw = 0.55 + Math.sin(s.twinkle) * 0.45;
 
@@ -603,6 +588,32 @@ function drawNebula(energy, bass, treble) {
         ctx.fill();
     }
 
-    /* ── 3. Streaks (kick-drum bursts) ────────────── */
+    /* 3. Streaks */
     ctx.shadowBlur = 0;
-    for (let i = s
+    for (let i = streaks.length - 1; i >= 0; i--) {
+        const st = streaks[i];
+        st.x += st.vx;
+        st.y += st.vy;
+        st.vx *= 0.97;
+        st.vy *= 0.97;
+        st.life -= 0.02;
+
+        if (st.life <= 0) {
+            streaks.splice(i, 1);
+            continue;
+        }
+
+        const backX = st.x - st.vx * st.length * 0.4;
+        const backY = st.y - st.vy * st.length * 0.4;
+
+        const grad = ctx.createLinearGradient(backX, backY, st.x, st.y);
+        grad.addColorStop(0, `hsla(${st.hue}, 100%, 75%, 0)`);
+        grad.addColorStop(1, `hsla(${st.hue}, 100%, 85%, ${st.life})`);
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2 * DPR * st.life;
+        ctx.shadowBlur = 12 * DPR * st.life;
+        ctx.shadowColor = `hsla(${st.hue}, 100%, 75%, ${st.life})`;
+        ctx.beginPath();
+        ctx.moveTo(backX, backY);
+        
