@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   AURORA — Landing + Player
+   AURORA — Landing + Player (Nebula Mode)
    ═══════════════════════════════════════════════════════ */
 
 document.getElementById('year').textContent = new Date().getFullYear();
@@ -35,14 +35,9 @@ document.querySelectorAll('.btn').forEach(btn => {
    ─────────────────────────────────────────── */
 document.getElementById('apkBtn').addEventListener('click', () => {
     toast('📱 <span class="accent">Android APK</span> coming soon — build in progress!');
-    // When ready, replace with:
-    // window.location.href = 'downloads/aurora.apk';
 });
-
 document.getElementById('exeBtn').addEventListener('click', () => {
     toast('💻 <span class="accent">Windows EXE</span> coming soon — build in progress!');
-    // When ready, replace with:
-    // window.location.href = 'downloads/aurora-setup.exe';
 });
 
 /* ───────────────────────────────────────────
@@ -175,9 +170,10 @@ const playPath  = 'M8 5v14l11-7z';
 const pausePath = 'M6 5h4v14H6zM14 5h4v14h-4z';
 
 let mode = 0;
-const modes = ['◉ Bars', '◎ Radial', '〜 Wave', '✧ Particles'];
-let particles = [];
-let barPeaks  = new Float32Array(128);
+const modes = ['◉ Bars', '◎ Radial', '〜 Wave', '✦ Nebula'];
+let stars  = [];
+let streaks = [];
+let barPeaks = new Float32Array(128);
 
 /* ── File upload ── */
 fileInput.addEventListener('change', e => {
@@ -296,49 +292,90 @@ fullscreenBtn.addEventListener('click', () => {
     else document.exitFullscreen?.();
 });
 
-/* ── Particles ── */
-function initParticles() {
-    particles = [];
-    const count = 160;
+/* ── Nebula entities ── */
+function initStars() {
+    stars = [];
+    const count = 220;
     for (let i = 0; i < count; i++) {
-        particles.push({
-            x: Math.random() * W,
-            y: Math.random() * H,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: (Math.random() - 0.5) * 0.4,
-            r: Math.random() * 2 + 0.6,
-            hue: Math.random() * 60 + 250
+        // Spawn in a disc around center
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * Math.min(W, H) * 0.42;
+        stars.push({
+            x: W / 2 + Math.cos(a) * r,
+            y: H / 2 + Math.sin(a) * r,
+            vx: 0, vy: 0,
+            size: Math.random() * 1.6 + 0.4,
+            hue: 240 + Math.random() * 100,
+            twinkle: Math.random() * Math.PI * 2,
+            twinkleSpeed: 0.02 + Math.random() * 0.05
         });
     }
 }
-window.addEventListener('resize', initParticles);
+
+function spawnStreak(bass) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (2 + bass * 6) * DPR;
+    streaks.push({
+        x: W / 2, y: H / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        hue: 240 + Math.random() * 120,
+        length: 40 + Math.random() * 60
+    });
+}
+
+window.addEventListener('resize', () => { initStars(); });
 
 /* ── Rendering ── */
 let rotation = 0;
 let hueShift = 0;
+let lastBass = 0;
 
 function draw() {
     if (!visualizerRunning) return;
     requestAnimationFrame(draw);
 
-    ctx.fillStyle = 'rgba(5,6,10,0.22)';
+    // Trail fade — softer for nebula
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(5,6,10,0.18)';
     ctx.fillRect(0, 0, W, H);
 
     analyser.getByteFrequencyData(freqData);
     analyser.getByteTimeDomainData(timeData);
 
-    hueShift += 0.25;
+    hueShift += 0.08;
     rotation += 0.004;
 
-    const avg    = freqData.reduce((a, b) => a + b, 0) / freqData.length;
-    const energy = avg / 255;
+    // Energy metrics
+    let sumAll = 0;
+    for (let i = 0; i < freqData.length; i++) sumAll += freqData[i];
+    const energy = sumAll / freqData.length / 255;
+
+    let bassSum = 0;
+    for (let i = 0; i < 10; i++) bassSum += freqData[i];
+    const bass = bassSum / 10 / 255;
+
+    let trebleSum = 0;
+    const trebleStart = Math.floor(freqData.length * 0.7);
+    for (let i = trebleStart; i < freqData.length; i++) trebleSum += freqData[i];
+    const treble = trebleSum / (freqData.length - trebleStart) / 255;
+
+    // Beat detection (bass spike)
+    if (bass - lastBass > 0.15 && bass > 0.35) {
+        for (let k = 0; k < 3; k++) spawnStreak(bass);
+    }
+    lastBass = bass;
 
     if      (mode === 0) drawBars(energy);
     else if (mode === 1) drawRadial(energy);
     else if (mode === 2) drawWave(energy);
-    else                 drawParticles(energy);
+    else                 drawNebula(energy, bass, treble);
 }
 
+/* ═══════════════════════════════════════════
+   MODE 0 — BARS
+   ═══════════════════════════════════════════ */
 function drawBars(energy) {
     const bars  = 128;
     const step  = Math.floor(freqData.length / bars);
@@ -381,21 +418,31 @@ function drawBars(energy) {
         ctx.fillRect(x, H - H * 0.08 + 4 * DPR, barW, Math.min(h * 0.35, H * 0.15));
         ctx.globalAlpha = 1;
     }
+    ctx.shadowBlur = 0;
 }
 
+/* ═══════════════════════════════════════════
+   MODE 1 — RADIAL
+   ═══════════════════════════════════════════ */
 function drawRadial(energy) {
     const cx = W / 2, cy = H / 2;
-    const bars    = 180;
-    const step    = Math.floor(freqData.length / bars);
-    const baseR   = Math.min(W, H) * 0.16;
-    const maxLen  = Math.min(W, H) * 0.32;
+    const bars   = 128;
+    const step   = Math.floor(freqData.length / bars);
+    const baseR  = Math.min(W, H) * 0.16;
+    const maxLen = Math.min(W, H) * 0.32;
+
+    if (!drawRadial.prev || drawRadial.prev.length !== bars) {
+        drawRadial.prev = new Float32Array(bars);
+    }
+    const prev = drawRadial.prev;
 
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rotation);
 
+    ctx.shadowBlur = 0;
     const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, baseR * 1.4);
-    coreGrad.addColorStop(0, `hsla(${hueShift % 360 + 260}, 100%, 70%, ${0.35 + energy * 0.5})`);
+    coreGrad.addColorStop(0, `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 70%, ${0.35 + energy * 0.5})`);
     coreGrad.addColorStop(1, 'transparent');
     ctx.fillStyle = coreGrad;
     ctx.beginPath();
@@ -408,17 +455,20 @@ function drawRadial(energy) {
         let v = (sum / step) / 255;
         v = Math.pow(v, 1.5);
 
+        prev[i] += (v - prev[i]) * 0.35;
+        const smoothed = prev[i];
+
         const angle = (i / bars) * Math.PI * 2;
-        const len   = baseR + v * maxLen;
+        const len   = baseR + smoothed * maxLen;
         const x1 = Math.cos(angle) * baseR;
         const y1 = Math.sin(angle) * baseR;
         const x2 = Math.cos(angle) * len;
         const y2 = Math.sin(angle) * len;
 
-        const hue = (i / bars) * 360 + hueShift % 360;
-        ctx.strokeStyle = `hsla(${hue}, 100%, ${55 + v * 25}%, ${0.35 + v * 0.65})`;
-        ctx.lineWidth   = (2 + v * 3) * DPR;
-        ctx.shadowBlur  = 16 * DPR * v;
+        const hue = (i / bars) * 360 + (hueShift * 0.4) % 360;
+        ctx.strokeStyle = `hsla(${hue}, 100%, ${55 + smoothed * 25}%, ${0.35 + smoothed * 0.65})`;
+        ctx.lineWidth   = (2 + smoothed * 3) * DPR;
+        ctx.shadowBlur  = 14 * DPR * smoothed;
         ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.9)`;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -429,16 +479,21 @@ function drawRadial(energy) {
 
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.strokeStyle = `hsla(${hueShift % 360 + 260}, 100%, 75%, 0.6)`;
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 75%, 0.6)`;
     ctx.lineWidth   = 2 * DPR;
-    ctx.shadowBlur  = 24 * DPR;
-    ctx.shadowColor = `hsla(${hueShift % 360 + 260}, 100%, 65%, 1)`;
+    ctx.shadowBlur  = 18 * DPR;
+    ctx.shadowColor = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 65%, 1)`;
     ctx.beginPath();
     ctx.arc(0, 0, baseR * (1 + energy * 0.15), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    ctx.shadowBlur = 0;
 }
 
+/* ═══════════════════════════════════════════
+   MODE 2 — WAVE
+   ═══════════════════════════════════════════ */
 function drawWave(energy) {
     const mid = H * 0.5;
     const amp = H * 0.28;
@@ -460,66 +515,94 @@ function drawWave(energy) {
         }
         ctx.stroke();
     }
+    ctx.shadowBlur = 0;
 }
 
-function drawParticles(energy) {
+/* ═══════════════════════════════════════════
+   MODE 3 — NEBULA (new!)
+   ═══════════════════════════════════════════ */
+function drawNebula(energy, bass, treble) {
     const cx = W / 2, cy = H / 2;
-    const maxR = Math.min(W, H) * 0.45;
+    const maxR = Math.min(W, H) * 0.5;
 
-    for (let p of particles) {
-        const dx = p.x - cx, dy = p.y - cy;
-        const dist  = Math.hypot(dx, dy) || 1;
-        const force = energy * 3 + 0.3;
-        p.vx += (dx / dist) * force * 0.3;
-        p.vy += (dy / dist) * force * 0.3;
-        p.vx *= 0.96; p.vy *= 0.96;
-        p.x  += p.vx; p.y  += p.vy;
+    /* ── 1. Rotating nebula cloud ─────────────────── */
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation * 0.6);
 
-        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
-        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+    const cloudR = maxR * (0.55 + bass * 0.5);
+    const cloud = ctx.createRadialGradient(0, 0, 0, 0, 0, cloudR);
+    const h1 = (hueShift * 0.6) % 360 + 250;
+    const h2 = (hueShift * 0.6) % 360 + 320;
+    cloud.addColorStop(0,    `hsla(${h1}, 100%, 65%, ${0.12 + energy * 0.35})`);
+    cloud.addColorStop(0.45, `hsla(${h2}, 100%, 55%, ${0.06 + energy * 0.22})`);
+    cloud.addColorStop(1,    'transparent');
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = cloud;
+    ctx.beginPath();
+    ctx.arc(0, 0, cloudR, 0, Math.PI * 2);
+    ctx.fill();
 
-        const hue = (p.hue + hueShift) % 360;
-        const r   = p.r * (1 + energy * 2) * DPR;
-        ctx.fillStyle   = `hsla(${hue}, 100%, 70%, ${0.35 + energy * 0.55})`;
-        ctx.shadowBlur  = 15 * DPR * energy;
-        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.9)`;
+    // Swirl lines (arcs) — the "filaments"
+    for (let s = 0; s < 5; s++) {
+        const arcR = cloudR * (0.35 + s * 0.14);
+        const hue = (h1 + s * 30) % 360;
+        ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${0.05 + energy * 0.25})`;
+        ctx.lineWidth = (1 + treble * 2) * DPR;
+        ctx.shadowBlur = 14 * DPR * (0.3 + energy);
+        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.7)`;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.arc(0, 0, arcR, s * 1.2, s * 1.2 + Math.PI * 1.4);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    /* ── 2. Stars (drifting outward) ──────────────── */
+    for (let s of stars) {
+        const dx = s.x - cx, dy = s.y - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const nx = dx / dist, ny = dy / dist;
+
+        // Gentle outward push, stronger with bass
+        const push = 0.05 + bass * 1.4;
+        s.vx += nx * push * 0.3;
+        s.vy += ny * push * 0.3;
+
+        // Orbital swirl (perpendicular) — sparkle with treble
+        const swirl = 0.12 + treble * 0.8;
+        s.vx += -ny * swirl * 0.15;
+        s.vy +=  nx * swirl * 0.15;
+
+        s.vx *= 0.96;
+        s.vy *= 0.96;
+
+        s.x += s.vx;
+        s.y += s.vy;
+
+        // Wrap back to center when too far
+        if (dist > maxR) {
+            const a = Math.random() * Math.PI * 2;
+            const r = Math.random() * maxR * 0.15;
+            s.x = cx + Math.cos(a) * r;
+            s.y = cy + Math.sin(a) * r;
+            s.vx = 0; s.vy = 0;
+        }
+
+        // Twinkle
+        s.twinkle += s.twinkleSpeed + treble * 0.15;
+        const tw = 0.55 + Math.sin(s.twinkle) * 0.45;
+
+        const hue = (s.hue + hueShift * 0.5) % 360;
+        const size = s.size * (1 + bass * 2) * DPR;
+
+        ctx.fillStyle = `hsla(${hue}, 100%, 82%, ${tw * (0.6 + energy * 0.4)})`;
+        ctx.shadowBlur = 8 * DPR * (0.4 + energy);
+        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-    grad.addColorStop(0, `hsla(${hueShift % 360 + 260}, 100%, 65%, ${energy * 0.4})`);
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-/* ── Init visualizer (lazy) ── */
-function initVisualizer() {
-    resize();
-    initParticles();
-    draw();
-}
-
-/* ── Keyboard shortcuts ── */
-document.addEventListener('keydown', e => {
-    if (!playerSection.classList.contains('active')) return;
-    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
-    if (e.key === 'm' || e.key === 'M') modeBtn.click();
-    if (e.key === 'f' || e.key === 'F') fullscreenBtn.click();
-    if (e.key === 'Escape') backBtn.click();
-});
-
-/* ── Drag & drop anywhere ── */
-document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', e => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('audio/')) {
-        if (!playerSection.classList.contains('active')) playNowBtn.click();
-        setTimeout(() => loadFile(file), 200);
-    }
-});
+    /* ── 3. Streaks (kick-drum bursts) ────────────── */
+    ctx.shadowBlur = 0;
+    for (let i = s
