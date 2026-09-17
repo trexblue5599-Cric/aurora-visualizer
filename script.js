@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   AURORA — Landing + Player (Part 1/2)
+   AURORA — script.js (Part 1/4)
    ═══════════════════════════════════════════════════════ */
 
 document.getElementById('year').textContent = new Date().getFullYear();
@@ -18,7 +18,7 @@ function toast(msg, duration = 2400) {
     toastEl._t = setTimeout(() => toastEl.classList.remove('show'), duration);
 }
 
-/* ── Ripple on buttons ── */
+/* ── Ripple ── */
 document.querySelectorAll('.btn').forEach(btn => {
     btn.addEventListener('click', () => {
         btn.classList.add('clicked');
@@ -124,8 +124,8 @@ window.addEventListener('resize', resize);
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const analyser = audioCtx.createAnalyser();
-analyser.fftSize = 2048;
-analyser.smoothingTimeConstant = 0.82;
+analyser.fftSize = 1024;
+analyser.smoothingTimeConstant = 0.65;
 
 const gainNode = audioCtx.createGain();
 gainNode.gain.value = 0.8;
@@ -165,7 +165,6 @@ const modes = ['◉ Bars', '◎ Radial', '〜 Wave', '✦ Nebula'];
 let stars    = [];
 let streaks  = [];
 let barPeaks = new Float32Array(128);
-
 /* ── File upload ── */
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
@@ -351,14 +350,14 @@ function draw() {
     for (let i = tStart; i < freqData.length; i++) trebleSum += freqData[i];
     const treble = trebleSum / (freqData.length - tStart) / 255;
 
-    if (bass - lastBass > 0.15 && bass > 0.35) {
-        for (let k = 0; k < 3; k++) spawnStreak(bass);
+    if (bass - lastBass > 0.12 && bass > 0.3) {
+        for (let k = 0; k < 4; k++) spawnStreak(bass);
     }
     lastBass = bass;
 
     if      (mode === 0) drawBars(energy);
-    else if (mode === 1) drawRadial(energy);
-    else if (mode === 2) drawWave(energy);
+    else if (mode === 1) drawRadial(energy, bass);
+    else if (mode === 2) drawWave(energy, bass);
     else                 drawNebula(energy, bass, treble);
 }
 
@@ -413,12 +412,12 @@ function drawBars(energy) {
 /* ═══════════════════════════════════════════
    MODE 1 — RADIAL
    ═══════════════════════════════════════════ */
-function drawRadial(energy) {
+function drawRadial(energy, bass) {
     const cx = W / 2, cy = H / 2;
-    const bars   = 128;
+    const bars   = 96;
     const step   = Math.floor(freqData.length / bars);
-    const baseR  = Math.min(W, H) * 0.16;
-    const maxLen = Math.min(W, H) * 0.32;
+    const baseR  = Math.min(W, H) * 0.15;
+    const maxLen = Math.min(W, H) * 0.34;
 
     if (!drawRadial.prev || drawRadial.prev.length !== bars) {
         drawRadial.prev = new Float32Array(bars);
@@ -430,21 +429,24 @@ function drawRadial(energy) {
     ctx.rotate(rotation);
 
     ctx.shadowBlur = 0;
-    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, baseR * 1.4);
-    coreGrad.addColorStop(0, `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 70%, ${0.35 + energy * 0.5})`);
+    const coreR = baseR * (1.1 + bass * 0.5);
+    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR * 1.6);
+    coreGrad.addColorStop(0, `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 75%, ${0.3 + bass * 0.6})`);
     coreGrad.addColorStop(1, 'transparent');
     ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.arc(0, 0, baseR * 1.4, 0, Math.PI * 2);
+    ctx.arc(0, 0, coreR * 1.6, 0, Math.PI * 2);
     ctx.fill();
 
     for (let i = 0; i < bars; i++) {
         let sum = 0;
         for (let j = 0; j < step; j++) sum += freqData[i * step + j];
         let v = (sum / step) / 255;
-        v = Math.pow(v, 1.5);
+        v = Math.pow(v, 1.3);
 
-        prev[i] += (v - prev[i]) * 0.35;
+        const target = v;
+        if (target > prev[i]) prev[i] += (target - prev[i]) * 0.55;
+        else                  prev[i] += (target - prev[i]) * 0.25;
         const smoothed = prev[i];
 
         const angle = (i / bars) * Math.PI * 2;
@@ -455,10 +457,10 @@ function drawRadial(energy) {
         const y2 = Math.sin(angle) * len;
 
         const hue = (i / bars) * 360 + (hueShift * 0.4) % 360;
-        ctx.strokeStyle = `hsla(${hue}, 100%, ${55 + smoothed * 25}%, ${0.35 + smoothed * 0.65})`;
-        ctx.lineWidth   = (2 + smoothed * 3) * DPR;
-        ctx.shadowBlur  = 14 * DPR * smoothed;
-        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.9)`;
+        ctx.strokeStyle = `hsla(${hue}, 100%, ${58 + smoothed * 30}%, ${0.4 + smoothed * 0.6})`;
+        ctx.lineWidth   = (2.5 + smoothed * 3.5) * DPR;
+        ctx.shadowBlur  = 15 * DPR * smoothed;
+        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -469,12 +471,13 @@ function drawRadial(energy) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 75%, 0.6)`;
-    ctx.lineWidth   = 2 * DPR;
-    ctx.shadowBlur  = 18 * DPR;
-    ctx.shadowColor = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 65%, 1)`;
+    const ringR = baseR * (1 + bass * 0.4 + energy * 0.15);
+    ctx.strokeStyle = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 80%, ${0.5 + bass * 0.5})`;
+    ctx.lineWidth   = (2 + bass * 4) * DPR;
+    ctx.shadowBlur  = (16 + bass * 24) * DPR;
+    ctx.shadowColor = `hsla(${(hueShift * 0.4) % 360 + 260}, 100%, 70%, 1)`;
     ctx.beginPath();
-    ctx.arc(0, 0, baseR * (1 + energy * 0.15), 0, Math.PI * 2);
+    ctx.arc(0, 0, ringR, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -483,48 +486,67 @@ function drawRadial(energy) {
 /* ═══════════════════════════════════════════
    MODE 2 — WAVE
    ═══════════════════════════════════════════ */
-function drawWave(energy) {
+function drawWave(energy, bass) {
     const mid = H * 0.5;
-    const amp = H * 0.28;
+    const amp = H * 0.32;
 
-    for (let layer = 0; layer < 4; layer++) {
+    const layers = [
+        { color1: 260, bands: [0, 0.33] },
+        { color1: 200, bands: [0.33, 0.66] },
+        { color1: 170, bands: [0.66, 1.0] }
+    ];
+
+    for (let L = 0; L < layers.length; L++) {
+        const layer = layers[L];
+        const start = Math.floor(freqData.length * layer.bands[0]);
+        const end   = Math.floor(freqData.length * layer.bands[1]);
+        const count = end - start;
+
         ctx.beginPath();
-        const hue = (hueShift + layer * 25) % 360 + 250;
-        ctx.strokeStyle = `hsla(${hue}, 100%, ${60 + layer * 5}%, ${0.9 - layer * 0.18})`;
-        ctx.lineWidth   = (3 - layer * 0.5) * DPR;
-        ctx.shadowBlur  = 20 * DPR;
-        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.9)`;
+        const hue = (hueShift * 0.5 + L * 40) % 360 + layer.color1 % 360;
+        ctx.strokeStyle = `hsla(${hue}, 100%, ${65 + L * 5}%, ${0.85 - L * 0.2})`;
+        ctx.lineWidth   = (3.5 - L * 0.8) * DPR;
+        ctx.shadowBlur  = (18 + bass * 20) * DPR;
+        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
 
-        for (let i = 0; i < timeData.length; i += 2) {
-            const x = (i / timeData.length) * W;
-            const t = (timeData[i] - 128) / 128;
-            const y = mid + t * amp * (1 + energy * 0.5) + Math.sin(i * 0.01 + layer) * 10 * DPR;
+        for (let i = 0; i < count; i++) {
+            const x = (i / count) * W;
+            const v = freqData[start + i] / 255;
+            const y = mid + (v - 0.5) * amp * 2;
+
             if (i === 0) ctx.moveTo(x, y);
             else         ctx.lineTo(x, y);
         }
         ctx.stroke();
     }
-    ctx.shadowBlur = 0;
-}
 
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `hsla(${(hueShift * 0.5) % 360 + 280}, 100%, 75%, ${0.15 + bass * 0.4})`;
+    ctx.lineWidth = 1.5 * DPR;
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(W, mid);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+                                          }
 /* ═══════════════════════════════════════════
    MODE 3 — NEBULA
    ═══════════════════════════════════════════ */
 function drawNebula(energy, bass, treble) {
     const cx = W / 2, cy = H / 2;
-    const maxR = Math.min(W, H) * 0.5;
+    const maxR = Math.min(W, H) * 0.55;
 
-    /* 1. Rotating nebula cloud */
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(rotation * 0.6);
+    ctx.rotate(rotation * 0.4);
 
-    const cloudR = maxR * (0.55 + bass * 0.5);
+    const cloudR = maxR * (0.5 + bass * 1.1);
     const cloud = ctx.createRadialGradient(0, 0, 0, 0, 0, cloudR);
-    const h1 = (hueShift * 0.6) % 360 + 250;
-    const h2 = (hueShift * 0.6) % 360 + 320;
-    cloud.addColorStop(0,    `hsla(${h1}, 100%, 65%, ${0.12 + energy * 0.35})`);
-    cloud.addColorStop(0.45, `hsla(${h2}, 100%, 55%, ${0.06 + energy * 0.22})`);
+    const h1 = (hueShift * 0.8) % 360 + 250;
+    const h2 = (hueShift * 0.8) % 360 + 320;
+    cloud.addColorStop(0,    `hsla(${h1}, 100%, 70%, ${0.15 + energy * 0.5})`);
+    cloud.addColorStop(0.45, `hsla(${h2}, 100%, 60%, ${0.08 + energy * 0.3})`);
     cloud.addColorStop(1,    'transparent');
     ctx.shadowBlur = 0;
     ctx.fillStyle = cloud;
@@ -532,35 +554,34 @@ function drawNebula(energy, bass, treble) {
     ctx.arc(0, 0, cloudR, 0, Math.PI * 2);
     ctx.fill();
 
-    for (let s = 0; s < 5; s++) {
-        const arcR = cloudR * (0.35 + s * 0.14);
+    for (let s = 0; s < 6; s++) {
+        const arcR = cloudR * (0.3 + s * 0.13);
         const hue = (h1 + s * 30) % 360;
-        ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${0.05 + energy * 0.25})`;
-        ctx.lineWidth = (1 + treble * 2) * DPR;
-        ctx.shadowBlur = 14 * DPR * (0.3 + energy);
-        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.7)`;
+        ctx.strokeStyle = `hsla(${hue}, 100%, 75%, ${0.06 + treble * 0.4})`;
+        ctx.lineWidth = (1 + treble * 3) * DPR;
+        ctx.shadowBlur = (16 + treble * 25) * DPR;
+        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
         ctx.beginPath();
-        ctx.arc(0, 0, arcR, s * 1.2, s * 1.2 + Math.PI * 1.4);
+        ctx.arc(0, 0, arcR, s * 1.2 + rotation, s * 1.2 + rotation + Math.PI * 1.3);
         ctx.stroke();
     }
     ctx.restore();
 
-    /* 2. Stars */
     for (let s of stars) {
         const dx = s.x - cx, dy = s.y - cy;
         const dist = Math.hypot(dx, dy) || 1;
         const nx = dx / dist, ny = dy / dist;
 
-        const push = 0.05 + bass * 1.4;
-        s.vx += nx * push * 0.3;
-        s.vy += ny * push * 0.3;
+        const push = 0.15 + bass * 5 + energy * 1.5;
+        s.vx += nx * push * 0.5;
+        s.vy += ny * push * 0.5;
 
-        const swirl = 0.12 + treble * 0.8;
-        s.vx += -ny * swirl * 0.15;
-        s.vy +=  nx * swirl * 0.15;
+        const swirl = 0.25 + treble * 2.5;
+        s.vx += -ny * swirl * 0.3;
+        s.vy +=  nx * swirl * 0.3;
 
-        s.vx *= 0.96;
-        s.vy *= 0.96;
+        s.vx *= 0.93;
+        s.vy *= 0.93;
 
         s.x += s.vx;
         s.y += s.vy;
@@ -573,59 +594,58 @@ function drawNebula(energy, bass, treble) {
             s.vx = 0; s.vy = 0;
         }
 
-        s.twinkle += s.twinkleSpeed + treble * 0.15;
-        const tw = 0.55 + Math.sin(s.twinkle) * 0.45;
+        s.twinkle += s.twinkleSpeed + treble * 0.4;
+        const tw = 0.5 + Math.sin(s.twinkle) * 0.5;
 
-        const hue = (s.hue + hueShift * 0.5) % 360;
-        const size = s.size * (1 + bass * 2) * DPR;
+        const hue = (s.hue + hueShift * 0.8) % 360;
+        const size = s.size * (1 + bass * 4 + energy * 1.5) * DPR;
 
-        ctx.fillStyle = `hsla(${hue}, 100%, 82%, ${tw * (0.6 + energy * 0.4)})`;
-        ctx.shadowBlur = 8 * DPR * (0.4 + energy);
-        ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
+        ctx.fillStyle = `hsla(${hue}, 100%, 85%, ${tw * (0.6 + energy * 0.4)})`;
+        ctx.shadowBlur = (10 + bass * 20) * DPR;
+        ctx.shadowColor = `hsla(${hue}, 100%, 75%, 1)`;
         ctx.beginPath();
         ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    /* 3. Streaks */
     ctx.shadowBlur = 0;
     for (let i = streaks.length - 1; i >= 0; i--) {
         const st = streaks[i];
-        st.x += st.vx;
-        st.y += st.vy;
-        st.vx *= 0.97;
-        st.vy *= 0.97;
-        st.life -= 0.02;
+        st.x += st.vx * 1.5;
+        st.y += st.vy * 1.5;
+        st.vx *= 0.96;
+        st.vy *= 0.96;
+        st.life -= 0.035;
 
         if (st.life <= 0) {
             streaks.splice(i, 1);
             continue;
         }
 
-        const backX = st.x - st.vx * st.length * 0.4;
-        const backY = st.y - st.vy * st.length * 0.4;
+        const backX = st.x - st.vx * st.length * 0.5;
+        const backY = st.y - st.vy * st.length * 0.5;
 
         const grad = ctx.createLinearGradient(backX, backY, st.x, st.y);
-        grad.addColorStop(0, `hsla(${st.hue}, 100%, 75%, 0)`);
-        grad.addColorStop(1, `hsla(${st.hue}, 100%, 85%, ${st.life})`);
+        grad.addColorStop(0, `hsla(${st.hue}, 100%, 80%, 0)`);
+        grad.addColorStop(1, `hsla(${st.hue}, 100%, 90%, ${st.life})`);
 
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 2 * DPR * st.life;
-        ctx.shadowBlur = 12 * DPR * st.life;
-        ctx.shadowColor = `hsla(${st.hue}, 100%, 75%, ${st.life})`;
+        ctx.lineWidth = (2.5 + bass * 3) * DPR * st.life;
+        ctx.shadowBlur = 15 * DPR * st.life;
+        ctx.shadowColor = `hsla(${st.hue}, 100%, 80%, ${st.life})`;
         ctx.beginPath();
         ctx.moveTo(backX, backY);
         ctx.lineTo(st.x, st.y);
         ctx.stroke();
     }
 
-    /* 4. Core pulse */
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowBlur = 0;
-    const coreR = (20 + bass * 90) * DPR;
+    const coreR = (15 + bass * 150) * DPR;
     const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
-    coreGrad.addColorStop(0, `hsla(${(hueShift * 0.8) % 360 + 260}, 100%, 85%, ${0.5 + bass * 0.5})`);
+    coreGrad.addColorStop(0, `hsla(${(hueShift * 1.2) % 360 + 260}, 100%, 90%, ${0.6 + bass * 0.4})`);
+    coreGrad.addColorStop(0.5, `hsla(${(hueShift * 1.2) % 360 + 300}, 100%, 70%, ${bass * 0.5})`);
     coreGrad.addColorStop(1, 'transparent');
     ctx.fillStyle = coreGrad;
     ctx.beginPath();
@@ -636,7 +656,7 @@ function drawNebula(energy, bass, treble) {
     ctx.shadowBlur = 0;
 }
 
-/* ── Init visualizer ── */
+/* ── Init ── */
 function initVisualizer() {
     resize();
     initStars();
